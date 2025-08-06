@@ -8,21 +8,15 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     private static GameManager instance;
-    public static GameManager Instance { get { return instance; } }
-
+    public static GameManager Instance => instance;
 
     // Managers=========================
     private static CharacterManager characterManager;
-    public static CharacterManager Character { get { return characterManager; } }
+    public static CharacterManager Character => characterManager;
 
     private void Awake()
     {
-        if (instance != null)
-        {
-            Destroy(this);
-            return;
-        }
-
+        if (instance != null) { Destroy(this); return; }
         instance = this;
         DontDestroyOnLoad(this);
         InitManagers();
@@ -36,11 +30,9 @@ public class GameManager : MonoBehaviour
 
     private void InitManagers()
     {
-        GameObject characterObj = new GameObject();
-        characterObj.name = "CharacterManager";
-        characterObj.transform.parent = transform;
+        GameObject characterObj = new GameObject("CharacterManager");
+        characterObj.transform.SetParent(transform, false);
         characterManager = characterObj.AddComponent<CharacterManager>();
-
     }
 
 }
