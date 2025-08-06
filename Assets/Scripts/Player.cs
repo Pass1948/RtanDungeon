@@ -8,7 +8,7 @@ public class Player : MonoBehaviour
 
     private void Awake()
     {
-        GameManager.Character.Player = this;
         controller = GetComponent<PlayerControl>();
+        GameManager.Character.Player = this;
     }
 }

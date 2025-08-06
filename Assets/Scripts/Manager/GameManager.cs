@@ -1,10 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Resources;
-using UnityEditor.EditorTools;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
+[DefaultExecutionOrder(-100)]       // GameManager가 다른 Script보다 먼저 호출되게 설정
 public class GameManager : MonoBehaviour
 {
     private static GameManager instance;
