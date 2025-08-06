@@ -4,15 +4,6 @@ using UnityEngine;
 
 public class CharacterManager : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    public Player _player;
+    public Player Player {  get { return _player; } set { _player = value; } }
 }
