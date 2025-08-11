@@ -131,6 +131,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   attackRate: 0.8
   attackDistance: 1
+  useStamina: 10
   doesGatherRespurces: 1
   doseDealDamage: 0
   damage: 0
