@@ -16,10 +16,12 @@ public class EquipTool : Equip
     public int damage;
 
     private Animator animator;
+    Camera camera;
 
     private void Start()
     {
         animator = GetComponent<Animator>();
+        camera = Camera.main;
     }
 
     public override void OnAttackInput()
@@ -38,7 +40,19 @@ public class EquipTool : Equip
         attacking = false;
     }
 
+    public void OnHit()
+    {
+        Ray ray = camera.ScreenPointToRay(new Vector3(Screen.width/2, Screen.height/2, 0));
+        RaycastHit hit;
 
+        if(Physics.Raycast(ray, out hit, attackDistance))
+        {
+            if(doesGatherRespurces && hit.collider.TryGetComponent(out Resource resource))
+            {
+                resource.Gather(hit.point, hit.normal);
+            }
+        }
+    }
 
 
 

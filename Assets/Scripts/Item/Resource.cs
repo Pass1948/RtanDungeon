@@ -14,7 +14,8 @@ public class Resource : MonoBehaviour
         {
             if (capacy <= 0) break;
             capacy -= 1;
-            Instantiate(itemToGive.dropPrefab, hitPoint + Vector3.up, Q)
+            Instantiate(itemToGive.dropPrefab, hitPoint + Vector3.up, Quaternion.LookRotation(hitNormal, Vector3.up));
+
         }
     }
 
