@@ -5,7 +5,7 @@ using UnityEngine;
 
 public interface IDamageIbe
 {
-    void TakePhtsicalDamaged(int damage);
+    void TakePhysicalDamaged(int damage);
 }
 
 
@@ -51,7 +51,7 @@ public class PlayerCondition : MonoBehaviour, IDamageIbe
         Debug.Log("Á×À½");
     }
 
-    public void TakePhtsicalDamaged(int damage)
+    public void TakePhysicalDamaged(int damage)
     {
         health.Subtract(damage);
         onTakeDamage?.Invoke();
