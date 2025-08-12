@@ -1,10 +1,9 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerControl : MonoBehaviour
+public class JumpPlayerCotroller : MonoBehaviour
 {
     [Header("플레이어 이동속도")]
     [SerializeField] float speed;
@@ -24,11 +23,9 @@ public class PlayerControl : MonoBehaviour
     Vector2 mouseDir;
     float camCurXRot;
     public bool canLook = true;
-    public Action inventory;
 
     Rigidbody rb;
     Vector3 dir;
-
 
     private void Awake()
     {
@@ -37,7 +34,7 @@ public class PlayerControl : MonoBehaviour
 
     private void Start()
     {
-       Cursor.lockState = CursorLockMode.Locked; // 마우스 커서 안보이게
+        Cursor.lockState = CursorLockMode.Locked; // 마우스 커서 안보이게
         curJumpP = jumpPower;
         curSpeed = speed;
     }
@@ -45,11 +42,7 @@ public class PlayerControl : MonoBehaviour
     void FixedUpdate()
     {
         Move();
-    }
-
-    private void LateUpdate()
-    {
-        if(canLook)
+        if (canLook)
         {
             CameraLook();
         }
@@ -73,7 +66,6 @@ public class PlayerControl : MonoBehaviour
 
         Vector3 delta = moveDir * curSpeed * Time.fixedDeltaTime;
         rb.MovePosition(rb.position + delta);
-
     }
 
     public void OnMove(InputValue value)
@@ -86,7 +78,7 @@ public class PlayerControl : MonoBehaviour
 
     public void OnLook(InputValue value)
     {
-            mouseDir = value.Get<Vector2>();
+        mouseDir = value.Get<Vector2>();
     }
 
     void CameraLook()
@@ -107,8 +99,8 @@ public class PlayerControl : MonoBehaviour
     //==============[Jump]==============
     void OnJump()
     {
-        if(IsGround())
-        rb.AddForce(Vector2.up * curJumpP, ForceMode.Impulse);
+        if (IsGround())
+            rb.AddForce(Vector2.up * curJumpP, ForceMode.Impulse);
     }
 
     bool IsGround()
@@ -131,25 +123,16 @@ public class PlayerControl : MonoBehaviour
         return false;
     }
 
-    //==============[Inventory]==============
+    public void OnJumpBorad(float jumpP)
+    {
+        rb.AddForce(Vector2.up * jumpP, ForceMode.Impulse);
+    }
+
+
+    //==============[시점변경버튼]==============
     void OnInventory()
     {
-        inventory?.Invoke();
-        ToggleCursor();
+    
     }
 
-    void ToggleCursor()
-    {
-        bool toggle = Cursor.lockState == CursorLockMode.Locked;
-        Cursor.lockState = toggle ? CursorLockMode.None : CursorLockMode.Locked;
-        canLook = !toggle;
-    }
 }
-
-
-
-
-
-
-
-
