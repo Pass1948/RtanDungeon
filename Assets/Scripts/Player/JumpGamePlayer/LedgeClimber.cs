@@ -5,80 +5,91 @@ using UnityEngine.InputSystem;
 
 public class LedgeClimber : MonoBehaviour
 {
-    [Header("Detect (OverlapSphere)")]
-    [SerializeField] LayerMask climbableMask = 0;               // Climbable 레이어
+    [Header("Detect (OverlapSphere by Tag)")]
+    [SerializeField] string climbableTag = "Interactable";
     [SerializeField] Vector3 chestLocalOffset = new Vector3(0f, 1.2f, 0.25f);
     [SerializeField] float sphereRadius = 0.45f;
 
     [Header("Place")]
-    [SerializeField] float standUpOffset = 0.12f;               // 오브젝트 상단에서 살짝 띄우기
-    [SerializeField] bool useBoundsCenterXZ = false;            // true면 Bounds 중심 XZ 사용
+    [SerializeField] float standUpOffset = 0.12f;     // 상단에서 살짝 띄우기
+    [SerializeField] bool useBoundsCenterXZ = false;  // true: Bounds 중심 XZ 사용
+
+    [Header("Guard Conditions")]
+    [SerializeField] float minRiseToSnap = 0.2f;      // 후보 상단이 플레이어보다 최소 이 높이만큼 위일 때만
+    [SerializeField, Range(-1f, 1f)] float minForwardDot = -0.2f; // 전방성(선택), -1~1
 
     [Header("Debug")]
     [SerializeField] bool drawGizmos = true;
     [SerializeField] Color gizmoColor = new Color(0f, 1f, 1f, 0.6f);
 
-    Collider lastHit;           // 디버그용
-    Vector3 lastChest;          // 디버그용
-    Vector3 lastClosestPoint;   // 디버그용
-    Vector3 lastStandPos;       // 디버그용
+    Collider lastHit; Vector3 lastChest; Vector3 lastClosestPoint; Vector3 lastStandPos;
 
-    void OnAttack() // 좌클릭(Attack) 액션 호출 시
-    {
-        SnapToObjectTop();
-    }
+    void OnAttack() => SnapToObjectTop();
 
     void SnapToObjectTop()
     {
-        // 1) 가슴 위치 계산
         Vector3 chest = transform.TransformPoint(chestLocalOffset);
         lastChest = chest;
 
-        // 2) OverlapSphere로 후보 수집
-        var hits = Physics.OverlapSphere(chest, sphereRadius, climbableMask, QueryTriggerInteraction.Ignore);
+        // 모든 레이어 대상으로 Overlap, 트리거 무시
+        var hits = Physics.OverlapSphere(chest, sphereRadius, ~0, QueryTriggerInteraction.Ignore);
         if (hits == null || hits.Length == 0) return;
 
-        // 3) 가장 가까운 콜라이더 선택(수평 거리 기준)
         Collider best = null;
-        float bestDist = float.MaxValue;
+        float bestScore = float.MaxValue;
         Vector3 bestClosest = Vector3.zero;
 
         foreach (var c in hits)
         {
+            // 1) 자기 자신(같은 루트) 제외
+            if (c.transform.root == transform.root) continue;
+
+            // 2) Tag 필터
+            var go = c.attachedRigidbody ? c.attachedRigidbody.gameObject : c.gameObject;
+            if (!go.CompareTag(climbableTag)) continue;
+
+            // 3) 수평거리 기반 가장 가까운 후보 계산
             Vector3 p = c.ClosestPoint(chest);
-            float d = (new Vector2(chest.x, chest.z) - new Vector2(p.x, p.z)).sqrMagnitude;
-            if (d < bestDist)
+            Vector2 a = new Vector2(chest.x, chest.z);
+            Vector2 b = new Vector2(p.x, p.z);
+            float horizDistSq = (a - b).sqrMagnitude;
+
+            // 4) 전방성(선택): 플레이어 전방과 후보 방향의 내적 체크
+            Vector3 to = new Vector3(p.x - chest.x, 0f, p.z - chest.z);
+            if (to.sqrMagnitude > 0.0001f)
             {
-                bestDist = d;
+                float dot = Vector3.Dot(to.normalized, transform.forward);
+                if (dot < minForwardDot) continue; // 너무 뒤쪽이면 제외
+            }
+
+            // 5) 최소 상승 높이 조건 (허공에서 아래 오브젝트로 텔레포트 방지)
+            float rise = c.bounds.max.y - transform.position.y;
+            if (rise < minRiseToSnap) continue;
+
+            if (horizDistSq < bestScore)
+            {
+                bestScore = horizDistSq;
                 best = c;
                 bestClosest = p;
             }
         }
+
         if (!best) return;
 
         lastHit = best;
         lastClosestPoint = bestClosest;
 
-        // 4) 스탠드 위치 계산: 오브젝트 "상단 높이"를 사용
-        Bounds b = best.bounds;
+        // 오브젝트 상단 Y로 스냅
+        Bounds bnds = best.bounds;
 
-        Vector3 standXZ;
-        if (useBoundsCenterXZ)
-        {
-            // Bounds 중심 XZ에 서기
-            standXZ = new Vector3(b.center.x, 0f, b.center.z);
-        }
-        else
-        {
-            // 플레이어와 가장 가까운 표면점의 XZ에 서기
-            standXZ = new Vector3(bestClosest.x, 0f, bestClosest.z);
-        }
+        Vector3 standXZ = useBoundsCenterXZ
+            ? new Vector3(bnds.center.x, 0f, bnds.center.z)
+            : new Vector3(bestClosest.x, 0f, bestClosest.z);
 
-        Vector3 standPos = new Vector3(standXZ.x, b.max.y + standUpOffset, standXZ.z);
+        Vector3 standPos = new Vector3(standXZ.x, bnds.max.y + standUpOffset, standXZ.z);
         lastStandPos = standPos;
 
-        // 5) 즉시 스냅(필요시 Rigidbody.MovePosition으로 대체)
-        transform.position = standPos;
+        transform.position = standPos; // Rigidbody 사용 시 rb.MovePosition(standPos);
     }
 
     void OnDrawGizmos()
@@ -89,21 +100,14 @@ public class LedgeClimber : MonoBehaviour
             ? transform.TransformPoint(chestLocalOffset)
             : transform.localToWorldMatrix.MultiplyPoint3x4(chestLocalOffset);
 
-        // OverlapSphere 시각화
         Gizmos.color = gizmoColor;
         Gizmos.DrawWireSphere(chest, sphereRadius);
 
-        // 선택된 콜라이더와 포인트, 최종 스탠드 위치 디버그
         if (lastHit)
         {
-            // 가슴 → 가장 가까운 표면점
             Debug.DrawLine(lastChest, lastClosestPoint, Color.cyan);
-
-            // 최종 스탠드 위치 마커
             Gizmos.color = Color.yellow;
             Gizmos.DrawSphere(lastStandPos, 0.06f);
-
-            // 선택된 콜라이더 bounds 윤곽(대략)
             Gizmos.color = new Color(1f, 1f, 0f, 0.25f);
             Gizmos.DrawWireCube(lastHit.bounds.center, lastHit.bounds.size);
         }
