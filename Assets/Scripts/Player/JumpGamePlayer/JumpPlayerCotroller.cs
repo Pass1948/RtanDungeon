@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Net.Sockets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -9,6 +10,10 @@ public class JumpPlayerCotroller : MonoBehaviour
     [SerializeField] float speed;
     float curSpeed;
 
+    // 지면 체크용 레이 길이와 시작 위치 오프셋
+    [SerializeField] float groundCheckDistance = 0.15f;
+    [SerializeField] float groundCheckOffset = 0.1f;
+    [SerializeField] LayerMask groundLayer; // "Ground" 레이어를 선택
 
     [Header("플레이어 점프파워")]
     [SerializeField] float jumpPower;
@@ -16,17 +21,23 @@ public class JumpPlayerCotroller : MonoBehaviour
 
 
     [Header("화면 움직임")]
-    [SerializeField] Transform camara;
+    [SerializeField] Transform cameraContainer;
     [SerializeField] float minXLook;
     [SerializeField] float maxXLook;
     [SerializeField] float lookSensitivity;
+
+    [Header("카메라 전환")]
+    [SerializeField] Camera thirdPersonCam;  // 3인칭 카메라
+    [SerializeField] Camera firstPersonCam;  // 1인칭 카메라
+    bool isFPS; // 현재 1인칭 여부
+
+
     Vector2 mouseDir;
     float camCurXRot;
     public bool canLook = true;
 
     Rigidbody rb;
     Vector3 dir;
-
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -47,9 +58,6 @@ public class JumpPlayerCotroller : MonoBehaviour
         curJumpP = jumpPower;
         curSpeed = speed;
     }
-
-
-
     void FixedUpdate()
     {
         Move();
@@ -58,6 +66,10 @@ public class JumpPlayerCotroller : MonoBehaviour
             CameraLook();
         }
     }
+    private void Update()
+    {
+        IsGround();
+    }
 
     //==============[Move]==============
     void Move()
@@ -65,8 +77,8 @@ public class JumpPlayerCotroller : MonoBehaviour
         Vector3 inputDir = new Vector3(dir.x, 0f, dir.z).normalized;
 
         // 카메라 기준 방향 추출
-        Vector3 camForward = camara.forward;
-        Vector3 camRight = camara.right;
+        Vector3 camForward = cameraContainer.forward;
+        Vector3 camRight = cameraContainer.right;
 
         // 수평 방향만 사용 (y축제거)
         camForward.y = 0f;
@@ -101,7 +113,7 @@ public class JumpPlayerCotroller : MonoBehaviour
         // 수직 회전 - 카메라만 회전
         camCurXRot -= mouseY;
         camCurXRot = Mathf.Clamp(camCurXRot, minXLook, maxXLook);
-        camara.localRotation = Quaternion.Euler(camCurXRot, 0f, 0f);
+        cameraContainer.localRotation = Quaternion.Euler(camCurXRot, 0f, 0f);
 
         // 수평 회전 - 플레이어 본체 회전
         transform.Rotate(Vector3.up * mouseX);
@@ -116,35 +128,35 @@ public class JumpPlayerCotroller : MonoBehaviour
 
     bool IsGround()
     {
-        Ray[] rays = new Ray[4]
-        {
-            new Ray(transform.position + (transform.forward * 0.2f) + (transform.up * 0.01f), Vector3.down),
-            new Ray(transform.position + (-transform.forward * 0.2f) + (transform.up * 0.01f), Vector3.down),
-            new Ray(transform.position + (transform.right * 0.2f) + (transform.up * 0.01f), Vector3.down),
-            new Ray(transform.position + (-transform.right * 0.2f) + (transform.up * 0.01f), Vector3.down),
-        };
+        Vector3 origin = transform.position + Vector3.down * groundCheckOffset;
+        // 디버그용 레이
+        Debug.DrawRay(origin, Vector3.down * groundCheckDistance, Color.red);
 
-        for (int i = 0; i < rays.Length; i++)
-        {
-            if (Physics.Raycast(rays[i], 0.1f, LayerMask.GetMask("Ground")))
-            {
-                return true;
-            }
-        }
-        return false;
+        // 기존 4방향에서 1줄기로 수정
+        return Physics.Raycast(origin, Vector3.down, groundCheckDistance, groundLayer);
     }
 
     public void OnJumpBorad(float jumpP)
     {
-        if (IsGround())
             rb.AddForce(Vector2.up * jumpP, ForceMode.Impulse);
     }
-
 
     //==============[시점변경버튼]==============
     void OnInventory()
     {
-    
+        ToggleView();
     }
+    public void ToggleView()
+    {
+        isFPS = !isFPS;
+        SetState(isFPS);
+    }
+
+    void SetState(bool isFPS)
+    {
+        if (firstPersonCam) firstPersonCam.enabled = isFPS;
+        if (thirdPersonCam) thirdPersonCam.enabled = !isFPS;
+    }
+
 
 }

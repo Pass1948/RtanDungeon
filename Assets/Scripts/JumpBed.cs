@@ -16,4 +16,5 @@ public class JumpBed : MonoBehaviour
             OnJumpBoardHit?.Invoke(jumpingPower);
         }
     }
+
 }
