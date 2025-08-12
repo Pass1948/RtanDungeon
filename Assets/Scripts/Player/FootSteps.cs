@@ -19,7 +19,7 @@ public class FootSteps : MonoBehaviour
 
     private void Update()
     {
-        if (Mathf.Abs(_rigidbody.velocity.y) < 0.1f)
+        if (Mathf.Abs(_rigidbody.velocity.y) < 0.2f)
         {
             if (_rigidbody.velocity.magnitude > footstepThreshold)
             {

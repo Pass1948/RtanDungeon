@@ -13,7 +13,7 @@ public class PlayerControl : MonoBehaviour
 
     [Header("플레이어 점프파워")]
     [SerializeField] float jumpPower;
-    float curJumpP;
+    [SerializeField] float curJumpP;
 
 
     [Header("화면 움직임")]
