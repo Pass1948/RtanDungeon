@@ -15,8 +15,8 @@ using UnityEngine.Pool;
             poolDic = new Dictionary<string, ObjectPool<GameObject>>();
             poolContainer = new Dictionary<string, Transform>();
             poolRoot = new GameObject("PoolRoot").transform;
-            canvasRoot = GameManager.Resource.Instantiate<Canvas>("Prefabs/UI/Canvas");
-            DontDestroyOnLoad(canvasRoot.gameObject);
+           // canvasRoot = GameManager.Resource.Instantiate<Canvas>("Prefabs/UI/Canvas");
+           // DontDestroyOnLoad(canvasRoot.gameObject);
         }
 
         public void Recreated()

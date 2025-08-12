@@ -31,6 +31,15 @@ public class JumpPlayerCotroller : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
     }
+    private void OnEnable()
+    {
+        JumpBed.OnJumpBoardHit += OnJumpBorad;
+    }
+
+    private void OnDisable()
+    {
+        JumpBed.OnJumpBoardHit -= OnJumpBorad;
+    }
 
     private void Start()
     {
@@ -38,6 +47,8 @@ public class JumpPlayerCotroller : MonoBehaviour
         curJumpP = jumpPower;
         curSpeed = speed;
     }
+
+
 
     void FixedUpdate()
     {
@@ -125,7 +136,8 @@ public class JumpPlayerCotroller : MonoBehaviour
 
     public void OnJumpBorad(float jumpP)
     {
-        rb.AddForce(Vector2.up * jumpP, ForceMode.Impulse);
+        if (IsGround())
+            rb.AddForce(Vector2.up * jumpP, ForceMode.Impulse);
     }
 
 
