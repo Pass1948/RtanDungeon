@@ -1,38 +1,42 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class LedgeClimber : MonoBehaviour
 {
+
     [Header("Detect (OverlapSphere by Tag)")]
     [SerializeField] string climbableTag = "Interactable";
     [SerializeField] Vector3 chestLocalOffset = new Vector3(0f, 1.2f, 0.25f);
-    [SerializeField] float sphereRadius = 0.45f;
+    [SerializeField] float sphereRadius = 0.5f;
+    [SerializeField] float maxUpHeight = 1.5f;
+    [SerializeField] float maxDownHeight = 0.5f;
 
-    [Header("Place")]
-    [SerializeField] float standUpOffset = 0.12f;     // »ó´Ü¿¡¼­ »ìÂ¦ ¶ç¿ì±â
-    [SerializeField] bool useBoundsCenterXZ = false;  // true: Bounds Áß½É XZ »ç¿ë
+    [Header("Climb Motion")]
+    [SerializeField] float standUpOffset = 0.1f;
+    [SerializeField] float climbDuration = 0.4f;
+    [SerializeField] float climbArcHeight = 0.5f;
+    [SerializeField] bool useBoundsCenterXZ = false;
 
-    [Header("Guard Conditions")]
-    [SerializeField] float minRiseToSnap = 0.2f;      // ÈÄº¸ »ó´ÜÀÌ ÇÃ·¹ÀÌ¾îº¸´Ù ÃÖ¼Ò ÀÌ ³ôÀÌ¸¸Å­ À§ÀÏ ¶§¸¸
-    [SerializeField, Range(-1f, 1f)] float minForwardDot = -0.2f; // Àü¹æ¼º(¼±ÅÃ), -1~1
+    Rigidbody rb;
+    bool isClimbing;
 
-    [Header("Debug")]
-    [SerializeField] bool drawGizmos = true;
-    [SerializeField] Color gizmoColor = new Color(0f, 1f, 1f, 0.6f);
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
 
-    Collider lastHit; Vector3 lastChest; Vector3 lastClosestPoint; Vector3 lastStandPos;
-
-    void OnAttack() => SnapToObjectTop();
+    void OnAttack()
+    {
+        if (isClimbing) return;
+        SnapToObjectTop();
+    }
 
     void SnapToObjectTop()
     {
         Vector3 chest = transform.TransformPoint(chestLocalOffset);
-        lastChest = chest;
-
-        // ¸ðµç ·¹ÀÌ¾î ´ë»óÀ¸·Î Overlap, Æ®¸®°Å ¹«½Ã
-        var hits = Physics.OverlapSphere(chest, sphereRadius, ~0, QueryTriggerInteraction.Ignore);
+        Collider[] hits = Physics.OverlapSphere(chest, sphereRadius, ~0, QueryTriggerInteraction.Ignore);
         if (hits == null || hits.Length == 0) return;
 
         Collider best = null;
@@ -41,30 +45,14 @@ public class LedgeClimber : MonoBehaviour
 
         foreach (var c in hits)
         {
-            // 1) ÀÚ±â ÀÚ½Å(°°Àº ·çÆ®) Á¦¿Ü
             if (c.transform.root == transform.root) continue;
+            if (!c.CompareTag(climbableTag)) continue;
 
-            // 2) Tag ÇÊÅÍ
-            var go = c.attachedRigidbody ? c.attachedRigidbody.gameObject : c.gameObject;
-            if (!go.CompareTag(climbableTag)) continue;
-
-            // 3) ¼öÆò°Å¸® ±â¹Ý °¡Àå °¡±î¿î ÈÄº¸ °è»ê
             Vector3 p = c.ClosestPoint(chest);
-            Vector2 a = new Vector2(chest.x, chest.z);
-            Vector2 b = new Vector2(p.x, p.z);
-            float horizDistSq = (a - b).sqrMagnitude;
+            float horizDistSq = (new Vector2(chest.x - p.x, chest.z - p.z)).sqrMagnitude;
 
-            // 4) Àü¹æ¼º(¼±ÅÃ): ÇÃ·¹ÀÌ¾î Àü¹æ°ú ÈÄº¸ ¹æÇâÀÇ ³»Àû Ã¼Å©
-            Vector3 to = new Vector3(p.x - chest.x, 0f, p.z - chest.z);
-            if (to.sqrMagnitude > 0.0001f)
-            {
-                float dot = Vector3.Dot(to.normalized, transform.forward);
-                if (dot < minForwardDot) continue; // ³Ê¹« µÚÂÊÀÌ¸é Á¦¿Ü
-            }
-
-            // 5) ÃÖ¼Ò »ó½Â ³ôÀÌ Á¶°Ç (Çã°ø¿¡¼­ ¾Æ·¡ ¿ÀºêÁ§Æ®·Î ÅÚ·¹Æ÷Æ® ¹æÁö)
             float rise = c.bounds.max.y - transform.position.y;
-            if (rise < minRiseToSnap) continue;
+            if (rise > maxUpHeight || rise < -maxDownHeight) continue;
 
             if (horizDistSq < bestScore)
             {
@@ -76,40 +64,61 @@ public class LedgeClimber : MonoBehaviour
 
         if (!best) return;
 
-        lastHit = best;
-        lastClosestPoint = bestClosest;
-
-        // ¿ÀºêÁ§Æ® »ó´Ü Y·Î ½º³À
         Bounds bnds = best.bounds;
-
         Vector3 standXZ = useBoundsCenterXZ
             ? new Vector3(bnds.center.x, 0f, bnds.center.z)
             : new Vector3(bestClosest.x, 0f, bestClosest.z);
+        Vector3 targetPos = new Vector3(
+            standXZ.x,
+            bnds.max.y + standUpOffset,
+            standXZ.z);
 
-        Vector3 standPos = new Vector3(standXZ.x, bnds.max.y + standUpOffset, standXZ.z);
-        lastStandPos = standPos;
+        StartCoroutine(ClimbRoutine(transform.position, targetPos));
+    }
 
-        transform.position = standPos; // Rigidbody »ç¿ë ½Ã rb.MovePosition(standPos);
+    IEnumerator ClimbRoutine(Vector3 startPos, Vector3 endPos)
+    {
+        isClimbing = true;
+
+        // ì¤‘ë ¥ ìƒíƒœ ì €ìž¥ ë° ë¹„í™œì„±í™”
+        bool prevGravity = rb.useGravity;
+        rb.useGravity = false;
+        rb.velocity = Vector3.zero; // ê¸°ì¡´ ì†ë„ ì œê±°
+
+        float t = 0f;
+        Vector3 lastPos = startPos;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / climbDuration;
+            // ì•„ì¹˜ ëª¨ì–‘ì˜ ê²½ë¡œ ìƒì„±
+            Vector3 apex = (startPos + endPos) * 0.5f + Vector3.up * climbArcHeight;
+            Vector3 pos1 = Vector3.Lerp(startPos, apex, t);
+            Vector3 pos2 = Vector3.Lerp(apex, endPos, t);
+            Vector3 current = Vector3.Lerp(pos1, pos2, t);
+
+            // ë¬¼ë¦¬ ì´ë™
+            rb.MovePosition(current);
+
+            // ê²½ë¡œë¥¼ ì‹¤ì‹œê°„ìœ¼ë¡œ ì”¬ ë·°ì— ê·¸ë ¤ ì¤Œ
+            Debug.DrawLine(lastPos, current, Color.green, 0f, false);
+            lastPos = current;
+
+            yield return null;
+        }
+
+        // ì¤‘ë ¥ ì›ìƒ ë³µêµ¬
+        rb.useGravity = prevGravity;
+        isClimbing = false;
     }
 
     void OnDrawGizmos()
     {
-        if (!drawGizmos) return;
-
+        // íƒì§€ êµ¬ì²´ë¥¼ ì”¬ ë·°ì—ì„œ í™•ì¸í•  ìˆ˜ ìžˆë„ë¡ ê·¸ë¦¬ê¸°
+        Gizmos.color = Color.cyan;
         Vector3 chest = Application.isPlaying
             ? transform.TransformPoint(chestLocalOffset)
             : transform.localToWorldMatrix.MultiplyPoint3x4(chestLocalOffset);
-
-        Gizmos.color = gizmoColor;
         Gizmos.DrawWireSphere(chest, sphereRadius);
-
-        if (lastHit)
-        {
-            Debug.DrawLine(lastChest, lastClosestPoint, Color.cyan);
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawSphere(lastStandPos, 0.06f);
-            Gizmos.color = new Color(1f, 1f, 0f, 0.25f);
-            Gizmos.DrawWireCube(lastHit.bounds.center, lastHit.bounds.size);
-        }
     }
 }
